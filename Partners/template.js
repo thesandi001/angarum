@@ -20,11 +20,21 @@ var handle = function(cb, params) {
     };
     return function (err, res, body) {
 	if (!err) {
-	    params.output(body)
-	    cb(res, params);
+	    try {
+		params.output(body)
+	    } catch (e) {
+		params.set({
+		    success: false,
+		    err: body
+		});
+	    }
 	}
 	else
-	    error(err);
+	    params.set({
+		success: false,
+		err: err
+	    });
+	return cb(res, params);
     }
 };
 
@@ -103,7 +113,7 @@ var Template = Class.extend('Template', {
 
     tracking_status: function(params, cb) {
 	var awb = params.get().awb_number;
-	if (awb.constructor == Array)
+	if (_.get(awb, "constructor") == Array)
 	    return this.multiple_tracking_status(params, cb);
 	return this.single_tracking_status(params, cb);
     }

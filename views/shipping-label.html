@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+  <head>
+      <meta charset="utf-8">
+      <title>Shipping Label</title>
+      <script type="text/javascript" src="https://cdn.jsdelivr.net/jsbarcode/3.5.8/JsBarcode.all.min.js"></script>
+
+    <style>
+      html, body {
+        margin: 0;
+        padding: 0;
+        font-family: 'Helvetica Neue', Arial, Sans serif;
+        -webkit-print-color-adjust: exact;
+        box-sizing: border-box;
+      }
+      .page {
+        position: relative;
+        width: 14cm;
+        box-sizing: border-box;
+        margin: auto;
+        display: block;
+        page-break-after: auto;
+        overflow: hidden;
+        padding-top : 15px;
+        color: rgb(51,51,51);
+        font-size: 13px;
+        line-height: 18px;
+        height: 100%;
+      }
+
+      @media print, screen {
+        body {}
+        .page { margin: "auto"; padding-top : 15px; width: 14cm;}
+        .title { font-size: 21px;font-weight: bold;text-align: center;}
+        .subtitle { font-size: 9px; margin-bottom: 20px;}
+        .mb20 { margin-bottom: 7px;}
+        .largesection { width: 20%;  }
+        .smallsection { width: 10%; }
+        .text { font-size: 12px;}
+        .smalltext { font-size: 10px;}
+        .zeroheight { line-height: 10px; }
+        .tiny-text { font-size: 8px; line-height: 10px}
+        .pad { padding: 9px; position: relative; }
+        .canvas { width: 200px; }
+        .bold { font-weight: bold; font-size: 12px; font-family: 'Helvetica Neue', Arial, Sans serif;}
+        .smallbold { font-weight: bold; font-size: 10px; font-family: 'Helvetica Neue', Arial, Sans serif;}
+        .extraSmallbold { font-weight: bold; font-size: 8px; font-family: 'Helvetica Neue', Arial, Sans serif;}
+        .billsection { font-size: 9px;}
+        .declare-text-bold { font-weight: bold; font-size: 11px; font-family: 'Helvetica Neue', Arial, Sans serif; }
+        .declare-text-bold-underline { font-weight: bold; font-size: 11px; font-family: 'Helvetica Neue', Arial, Sans serif; text-decoration: underline; }
+        .declare-text { font-size: 11px;  }
+        .note-text { font-size: 9px; line-height: 7px; }
+        .note-text-bold { font-size: 9px; font-weight: bold; line-height: 10px;}
+        .declare-heading { font-size: 9px; line-height: 7px; padding-bottom: 15px;margin-top: 7px; }
+        .declare-div {padding : 5px;}
+        .table {  }
+        #awb { text-align: center; font-weight: bold; font-size: 15px; margin-bottom: 8px;}
+        .manifest {width: 100%; padding-top: 10px;}
+        .break-line { float: left; width: 100%; padding-bottom: 1px;}
+        .scissor {width: 4.5%; float: left; height: 100%; }
+        .block { margin: 2.5px 5px; }
+        .break-line hr {width: 95%;  float: left; height: 100%;}
+        }
+      </style>
+  </head>
+  <body>
+    <div class="page">
+      <table class="table" border="1 solid black" cellpadding="0" cellspacing="0">
+        <tr class="pad">
+          <td colspan="3"><div class="title"><%= partner %></div></td>
+          <td colspan="3" align="center"><img src="http://elanic.in/images/logo.png" width="100px" height="32px"></td>
+        </tr>
+        <tr class="pad" valign="top">
+          <td style="width: 34%" colspan="2"><div><canvas class="canvas" align="center" id="barcode"></canvas> <div id="awb"><%= awb %></div></div></td>
+          <td style="width: 33%;padding: 5px;" colspan="2">
+            <div class="smallbold">COD-COLLECT : Rs <%= cod_amount %></div>
+            <div class="smallbold">PAYMENT MODE : <%= payment_mode %></div>
+            <% if(destination_code) { %>
+            <div class="smallbold">DEST CODE : <%= destination_code %></div>
+            <% } %>
+          </td>
+          <td style="width: 33%" colspan="2" rowspan="2" >
+            <div class="block">
+              <div><span class="bold" style="font-size: 9px">Bill To : </span> <span class="billsection"><%= fromAddress.name %></span></div>
+              <div class="zeroheight"><span class="bold" style="font-size: 9px">Courier Partner : </span> <span class="billsection"><%= partner %></span></div>
+              <div><span class="bold" style="font-size: 9px">Client Invoice No: </span><span class="billsection"><%= invoice_id %></span>
+              </div>
+            </div>
+            <div class="block">
+              <div><span class="smallbold">Product :  </span><span class="smalltext"><%= product_desc %></span></div>
+            </div>
+            <div class="block">
+              <div><span class="smallbold">HSN Code :  </span><span class="smalltext"><%= hsn %></span></div>
+            </div>
+            <div class="block">
+              <div><span class="smallbold">Quantity :  </span><span class="smalltext"><%= quantity %></span></div>
+            </div>
+            <div class="block">
+              <div><span class="smallbold">Amount :  </span><span class="smalltext"><%= selling_price %></span></div>
+              <div class="tiny-text">(Includes GST or any other Govt. taxes if applicable)</div>
+            </div>
+            <div class="block">
+              <div><span class="extraSmallbold">GST Number :  </span><span class="extraSmallbold"><%= gst %></span></div>
+            </div>
+          </td>
+        </tr>
+        <tr class="pad">
+          <td colspan="4">
+            <div class="block">
+              <div class="bold">Ship To</div>
+              <div class="zeroheight"><span class="bold">Name : </span><span class="text"><%= toAddress.name %></span></div>
+              <div><span class="bold">Address : </span><span class="text"><%= toAddress.address %></span></div>
+            </div>
+            <div class="block">
+              <table style="width: 100%;">
+                <tr>
+                  <td class="bold" style="width:20%;">Locality :</td>
+                  <td class="text" style="width:40%;"><%= toAddress.locality %></td>
+                  <td class="bold" style="width:15%;">City :</td>
+                  <td class="text" style="width:25%;"><%= toAddress.city %></td>
+                </tr>
+                <tr class="zeroheight">
+                  <td class="bold">State :</td>
+                  <td class="text"><%= toAddress.state %></td>
+                  <td class="bold">PIN :</td>
+                  <td class="text"><%= toAddress.pin + "" %></td>
+                </tr>
+              </table>
+              <div>
+                <span class="bold">Mobile Number : </span>
+                <span class = "bold"><%= toAddress.number + "" %></span>
+              </div>
+              <% if(toAddress.alternate_phone) { %>
+                <span class = "bold">, <%= toAddress.alternate_phone + "" %></span>
+              <% } %>
+            </div>
+          </td>
+        </tr>
+        <tr class="pad">
+          <td colspan="6">
+          <div class="declare-div">
+            <div><span class="declare-text-bold">Self Declaration Form : To whomsoever it may concern</span></div>
+              <div class="tiny-text">I hereby declare that the above mentioned information including the GST number is true and correct and I am liable to deposit any taxes if applicable on such transaction. In case my GST number is not mentioned above then I declare that I do not require a GST registration as per the government rules and regulations and I take the sole liability with respect to any legal issue arising.</div>
+            <div>
+              <span class="bold">Name :</span>
+              <span class="text"><%= fromAddress.name %></span>
+              <span class="bold">, Pickup / Return Address :</span>
+              <span class="text"><%= fromAddress.address %></span>
+              <span class="bold">, Locality :</span>
+              <span class="text"><%= fromAddress.locality %></span>
+            </div>
+            <table style="width: 100%;">
+              <tr>
+                <td class="bold" colspan="1">City :</td>
+                <td class="text" colspan="2"><%= fromAddress.city %></td>
+                <td class="bold" colspan="1">State :</td>
+                <td class="text" colspan="2"><%= fromAddress.state %></td>
+                <td class="bold" colspan="1">PIN :</td>
+                <td class="text" colspan="2"><%= fromAddress.pin + "" %></td>
+                <td class="tiny-text" style="vertical-align: bottom;font-style: weight;" colspan="1">Signature : </td>
+              </tr>
+            </table>
+          </div>
+          </div>
+          </td>
+        </tr>
+      </table>
+      <div class="break-line">
+        <span class="scissor">&#x2702;</span><hr style="border: dashed 1px;"/>
+      </div>
+      <% if(order_type==="forward_p2p" || order_type==="reverse_p2p") { %>
+        <div class="manifest">
+          <div class="note">
+            <div class="tiny-text">
+              If Pickup is not happening kindly report the same by reaching out to us through chat support on your Elanic app or email at: <span style="color:blue;text-decoration: underline">reach@elanic.in </span>
+            </div>
+            <div class="note-text-bold">
+              Please Note:
+            </div>
+            <div class="tiny-text block">
+    Elanic merely collects the payment on behalf of the seller. All applicable taxes and levies, the rates thereof and the manner of applicability of
+    such taxes on the bill are being charged and determined by the seller. Elanic holds no responsibility for the legal correctness/validity of the levy
+    of such taxes. The sole liability with respect to any legal issue arising on the taxes payable shall be with the seller.
+    The transaction is bilateral between the seller and the buyer and therefore, Elanic is not liable to charge or deposit any taxes applicable on such
+    transaction.
+          </div>
+        </div>
+          <div class="declare-heading">
+            <span class="declare-text-bold-underline">Customer Copy</span>
+            <span class="note-text">[Please take Pickup executive's signature on this and retain this as a proof of pickup]</span>
+          </div>
+          <table border="solid black" cellpadding="0" cellspacing="0">
+            <tr class="pad">
+              <th><div class="declare-div">
+                <span class="declare-text">S.No</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Date</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Order ID</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Product Description</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">AWB</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Partner</span>
+              </div></th>
+            </tr>
+            <tr class="pad">
+              <td><div class="declare-div">
+                <span class="declare-text">1</span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= invoice_date %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= invoice_id %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= product_desc_label %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= awb %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= partner %></span>
+              </div></td>
+            </tr>
+          </table>
+          <div class="declare-text-bold" align="left" style="margin: 10px 0;">Pickup Executive's Signature : </div>
+          <div class="break-line">
+            <span class="scissor">&#x2702;</span><hr style="border: dashed 1px;"/>
+          </div>
+          <div class="declare-heading">
+            <span class="declare-text-bold-underline">Pickup Executive Copy</span>
+            <span class="note-text">[Please sign and handover this copy to the Pickup Executive ]</span>
+          </div>
+          <table border="solid black" cellpadding="0" cellspacing="0">
+            <tr class="pad">
+              <th><div class="declare-div">
+                <span class="declare-text">S.No</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Date</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Order ID</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Product Description</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">AWB</span>
+              </div></th>
+              <th><div class="declare-div">
+                <span class="declare-text">Partner</span>
+              </div></th>
+            </tr>
+            <tr class="pad">
+              <td><div class="declare-div">
+                <span class="declare-text">1</span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= invoice_date %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= invoice_id %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= product_desc_label %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= awb %></span>
+              </div></td>
+              <td><div class="declare-div">
+                <span class="declare-text"><%= partner %></span>
+              </div></td>
+            </tr>
+          </table>
+          <div class="declare-text-bold" align="left" style="margin: 10px 0;">Customer's Signature : </div>
+        </div>
+      <% } %>
+      </div>
+  </body>
+  <script>
+    JsBarcode("#barcode","<%= awb %>",{
+      displayValue : false,
+      width : 2,
+      height : 40
+    });
+  </script>
+</html>

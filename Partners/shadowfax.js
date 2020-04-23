@@ -1,12 +1,11 @@
-var Template = require('./template.js');
-var querystring = require('querystring');
-var _ = require("lodash");
+const Template = require('./template.js');
+const querystring = require('querystring');
+const _ = require("lodash");
+const host = process.env['SHADOWFAX_HOST'];
+const token = process.env['SHADOWFAX_TOKEN'];
+const auth = "Token token=" + token;
 
-var host = process.env['SHADOWFAX_HOST'];
-var token = process.env['SHADOWFAX_TOKEN'];
-var auth = "Token token=" + token;
-
-var defaults={
+const defaults={
     format: "json",
     output: "json",
     token: process.env["SHADOWFAX_TOKEN"],
@@ -20,9 +19,9 @@ module.exports = Template.extend('Shadowfax', {
     init: function() {
 	this._super(host);
     },
-    
+
     order: function(params, cb) {
-		var url = "/api/v2/clients/requests";
+		let url = "/api/v3/clients/requests";
 		// Check out Order schema file for more information.
 		params.map([], {
 		    // "invoice_number" : "client_order_number",
@@ -32,72 +31,84 @@ module.exports = Template.extend('Shadowfax', {
 		    // "from_city": "city",
 		    // "from_state": "state",
 		    // "from_country": "country",
-		    // "from_mobile_number": "phone_number",		    
-		}, function(inp) {			
-	    	var req = {	    		
-	    		client_order_number: inp.invoice_number,
-	    		warehouse_name: (inp.to_city.toLowerCase() == "new delhi") ? "Elanic New Delhi Warehouse" : "Elanic Bangalore Warehouse",	    		
-	    		skus_attributes: [
-	    			{
-	    				name: inp.item_name,
-	    				client_sku_id: inp.reference_number,
-	    				price: inp.declared_value
-	    			}
-	    		],
-	    		address_attributes: {
-	    			name: inp.from_name,
-	    			address_line: inp.from_address,
-	    			pincode: inp.from_pin_code,
-	    			city: inp.from_city,
-	    			state: inp.from_state,
-	    			country: inp.from_country,
-	    			phone_number: inp.from_mobile_number,
-	    		},
-	    	};	    	
+		    // "from_mobile_number": "phone_number",
+		}, function(inp) {
+	    	let req = {
+          client_order_number: inp.invoice_number,
+          client_request_id:inp.reference_number,
+          seller_attributes: {
+					name: inp.to_name,
+					address_line: _.isEmpty(inp.to_address) ? inp.to_address_line_1 + inp.to_address_line_2 : inp.to_address,
+					city: inp.to_city,
+					pincode: inp.to_pin_code,
+					phone: inp.to_mobile_number
+			},
+          total_amount: inp.declared_value,
+          price: inp.declared_value,
+          skus_attributes: [
+                  {
+                          name: inp.item_name,
+                          client_sku_id: inp.reference_number,
+                          price: inp.declared_value
+                  }
+          ],
+          address_attributes: {
+                  name: inp.from_name,
+		  address_line: _.isEmpty(inp.from_address) ? inp.from_address_line_1 + inp.from_address_line_2 : inp.from_address,
+                  pincode: inp.from_pin_code,
+                  city: inp.from_city,
+                  state: inp.from_state,
+                  country: inp.from_country,
+                  phone_number: inp.from_mobile_number,
+          },
+	    	};
 	    	return req;
 		});
 
 		params.out_map({
 		    // "client_request_id": "awb",
 		    // "reference_number": "msg",
-		}, function(out) {			
+		}, function(out) {
 		    out.success = (out["errors"]) ? false : true;
-		    if (out.success)
-				out.err = null;
+		    if (out.success) {
+			out.err = null;
+			out.awb = out.client_request_id;
+			out.tracking_url = "http://track.shadowfax.in/track?order=return&trackingId="+out.awb;
+		    }
 		    else
-				out.err = out["errors"];			
+			out.err = out["errors"];
 		    return out;
 		});
 
 		// request headers
-		var headers = {
-		    "Authorization": "Token token=" + token,
+		const headers = {
+		    "Authorization": "Token " + token,
 		    "Content-type": "application/json"
 		};
-
+    //console.log("SHADOWFAX", url, JSON.stringify(inp), JSON.stringify(params), JSON.stringify(headers), JSON.stringify(out));
 		return this.post_req(url, params, cb, { headers: headers });
     },
 
-    track: function(params, cb) {    	
+    track: function(params, cb) {
 		params.set({
 		    "tracking_url": this.get_tracking_url(params.get().awb_number),
-		});		
+		});
 		return cb(null, params);
     },
 
-    get_tracking_url: function(awb) {    	
-		return host + "/api/v1/requests/" + awb;
+    get_tracking_url: function(awb) {
+		return host + "/api/v2/clients/requests/" + awb;
     },
 
     single_tracking_status: function(params, cb) {
-		var url = host + "/api/v1/requests/"+params.get().awb_number;		
-		var awb = params.get().awb_number;
-		var headers = {
+		let url = host + "/api/v2/clients/requests/"+params.get().awb_number;
+		let awb = params.get().awb_number;
+		const headers = {
 			// "Host":"reverse.shadowfax.in",
 			// "Connection":"keep-alive",
 			// "Accept":"application/json, text/javascript, */*; q=0.01",
 			// "Origin":"http://track.shadowfax.in",
-			"Authorization":"Token token=" + process.env["SHADOWFAX_INTERNAL_TOKEN"],
+			"Authorization":"Token "+process.env["SHADOWFAX_TOKEN"],
 			// "User-Agent":"Mozilla/5.0 (Macintosh; Intel Mac OS X 10_10_5) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/52.0.2743.82 Safari/537.36",
 			// "Referer":"http://track.shadowfax.in/track?order=return&trackingId=" + awb,
 			// "Accept-Encoding":"gzip, deflate, sdch",
@@ -106,31 +117,38 @@ module.exports = Template.extend('Shadowfax', {
 		params.out_map({
 		    "err": "error",
 		}, function(out) {
-			if (String == out.constructor) 
-				out = JSON.parse(out);				
+			console.log("shadowfaxtrack res", url, JSON.stringify(out));
+			if (String == out.constructor)
+				out = JSON.parse(out);
 
 			if(out.pickup_request_state_histories) {
-				var details = out.pickup_request_state_histories.map(function(scan) {
+				let details = out.pickup_request_state_histories.map(function(scan) {
 					return {
 						"time": scan.created_at,
 						"status": scan.state,
 						"location": scan.current_location,
 						"description": scan.comment || "",
-				    };				 
+				    };
 				});
-				var res = {
+				let res = {
 					success: true,
 					awb: awb,
 					details: details
-				};								
+				};
+				return res;
 			}
+			let res = {
+				success: false,
+				err: "Invalid waybill number or Bad request",
+			};
 			return res;
 		});
-		return this.get_req(url, params, cb, {url: url, headers: headers})
+		console.log("shadowfaxtrack req", url, JSON.stringify(headers), JSON.stringify(params.get()) );
+		return this.get_req(url, params, cb, {url: url, headers: headers});
     },
 
     cancel: function(params, cb) {
-		var url = "/api/packages/cancel/";
+		let url = host + "/api/v2/clients/requests/mark_cancel";
 		params.map(["to_be_omitted_1", "to_be_omitted_2"], {
 		    "from_mapping_1" : "to_mapping_1",
 		    "from_mapping_2" : "to_mapping_2",
@@ -144,7 +162,7 @@ module.exports = Template.extend('Shadowfax', {
 		    out.success = !Boolean(out.err);
 		    return out;
 		});
-		
+
 		return this.post_req(url, params, cb);
     },
 
